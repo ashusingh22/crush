@@ -83,6 +83,11 @@ type agent struct {
 	activeRequests *csync.Map[string, context.CancelFunc]
 
 	promptQueue *csync.Map[string, []string]
+
+	// Enhanced features for cost optimization and quality improvement
+	responseCache    *ResponseCache
+	costEstimator    *CostEstimator
+	feedbackMech     *FeedbackMechanism
 }
 
 var agentPromptMap = map[string]prompt.PromptID{
@@ -192,6 +197,9 @@ func NewAgent(
 			tools.NewSourcegraphTool(),
 			tools.NewViewTool(lspClients, permissions, cwd),
 			tools.NewWriteTool(lspClients, permissions, history, cwd),
+			// Enhanced productivity tools
+			tools.NewAnalyzeTool(permissions, cwd),
+			tools.NewBatchTool(permissions, cwd),
 		}
 
 		mcpToolsOnce.Do(func() {
@@ -233,7 +241,66 @@ func NewAgent(
 		activeRequests:      csync.NewMap[string, context.CancelFunc](),
 		tools:               csync.NewLazySlice(toolFn),
 		promptQueue:         csync.NewMap[string, []string](),
+		// Initialize enhancement features with configuration
+		responseCache:       createResponseCache(cfg),
+		costEstimator:       createCostEstimator(cfg),
+		feedbackMech:        createFeedbackMechanism(cfg),
 	}, nil
+}
+
+// createResponseCache creates a response cache based on configuration
+func createResponseCache(cfg *config.Config) *ResponseCache {
+	enhance := cfg.Options.EnhanceFeatures
+	if enhance == nil {
+		return NewResponseCache(true, 30*time.Minute, 100) // Defaults
+	}
+	
+	enabled := enhance.EnableCache
+	ttl := time.Duration(enhance.CacheTTLMinutes) * time.Minute
+	if ttl <= 0 {
+		ttl = 30 * time.Minute // Default
+	}
+	maxEntries := enhance.CacheMaxEntries
+	if maxEntries <= 0 {
+		maxEntries = 100 // Default
+	}
+	
+	return NewResponseCache(enabled, ttl, maxEntries)
+}
+
+// createCostEstimator creates a cost estimator based on configuration
+func createCostEstimator(cfg *config.Config) *CostEstimator {
+	enhance := cfg.Options.EnhanceFeatures
+	if enhance == nil {
+		return NewCostEstimator(0.50) // Default
+	}
+	
+	threshold := enhance.MaxCostThreshold
+	if threshold <= 0 {
+		threshold = 0.50 // Default
+	}
+	
+	return NewCostEstimator(threshold)
+}
+
+// createFeedbackMechanism creates a feedback mechanism based on configuration
+func createFeedbackMechanism(cfg *config.Config) *FeedbackMechanism {
+	enhance := cfg.Options.EnhanceFeatures
+	if enhance == nil {
+		return NewFeedbackMechanism(true, 0.7, 2) // Defaults
+	}
+	
+	enabled := enhance.EnableFeedback
+	threshold := enhance.QualityThreshold
+	if threshold <= 0 || threshold > 1 {
+		threshold = 0.7 // Default
+	}
+	maxRetries := enhance.MaxRetryAttempts
+	if maxRetries < 0 {
+		maxRetries = 2 // Default
+	}
+	
+	return NewFeedbackMechanism(enabled, threshold, maxRetries)
 }
 
 func (a *agent) Model() catwalk.Model {
@@ -506,6 +573,36 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (message.Message, *message.Message, error) {
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
 
+	// Check cache first to potentially avoid API call
+	if cachedEntry, found := a.responseCache.Get(ctx, msgHistory, a.Model().ID); found {
+		slog.Debug("Using cached response", "session_id", sessionID)
+		return cachedEntry.Response, nil, nil
+	}
+
+	// Estimate cost before making API call
+	model := a.Model()
+	estimatedUsage, estimatedCost, err := a.costEstimator.EstimateRequestCost(ctx, msgHistory, model, int(model.DefaultMaxTokens))
+	if err != nil {
+		slog.Warn("Failed to estimate cost", "error", err)
+	} else {
+		slog.Debug("Request cost estimation", 
+			"estimated_cost", estimatedCost,
+			"input_tokens", estimatedUsage.InputTokens,
+			"output_tokens", estimatedUsage.OutputTokens,
+		)
+		
+		// Check if cost is acceptable
+		if proceed, reason := a.costEstimator.ShouldProceed(estimatedCost); !proceed {
+			return message.Message{}, nil, fmt.Errorf("request blocked: %s (estimated cost: $%.4f)", reason, estimatedCost)
+		}
+
+		// Optimize messages if cost is high
+		if estimatedCost > 0.10 { // Optimize for requests over $0.10
+			msgHistory = a.costEstimator.OptimizeMessages(ctx, msgHistory, 0.3) // 30% reduction
+			slog.Debug("Optimized message history for cost reduction")
+		}
+	}
+
 	// Create the assistant message first so the spinner shows immediately
 	assistantMsg, err := a.messages.Create(ctx, sessionID, message.CreateMessageParams{
 		Role:     message.Assistant,
@@ -638,6 +735,45 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 		}
 	}
 out:
+	// Evaluate response quality and handle feedback if enabled
+	if len(msgHistory) > 0 && a.feedbackMech != nil {
+		userMessage := msgHistory[len(msgHistory)-1] // Last user message
+		quality := a.feedbackMech.EvaluateResponse(ctx, userMessage, assistantMsg)
+		
+		slog.Debug("Response quality evaluation", 
+			"score", quality.Score,
+			"confidence", quality.Confidence,
+			"requires_retry", quality.RequiresRetry,
+			"issues", len(quality.Issues),
+		)
+
+		// If quality is poor and we haven't exceeded retry attempts, attempt improvement
+		if quality.RequiresRetry && len(quality.Issues) > 0 {
+			// Generate improvement prompt
+			improvementPrompt := a.feedbackMech.GenerateImprovementPrompt(ctx, assistantMsg, quality)
+			if improvementPrompt != "" {
+				slog.Debug("Generated improvement prompt", "prompt_length", len(improvementPrompt))
+				
+				// Add improvement attempt to prompt queue for next iteration
+				// This allows for iterative improvement without immediate API calls
+				existingPrompts, _ := a.promptQueue.Get(sessionID)
+				updatedPrompts := append(existingPrompts, improvementPrompt)
+				a.promptQueue.Set(sessionID, updatedPrompts)
+			}
+		}
+	}
+
+	// Cache successful responses to reduce future API calls
+	if a.responseCache != nil && assistantMsg.FinishReason() == message.FinishReasonEndTurn {
+		// Get token usage from the provider if available
+		var usage provider.TokenUsage
+		if trackingProvider, ok := a.provider.(interface{ GetLastUsage() provider.TokenUsage }); ok {
+			usage = trackingProvider.GetLastUsage()
+		}
+		
+		a.responseCache.Set(ctx, msgHistory, a.Model().ID, assistantMsg, usage)
+	}
+
 	if len(toolResults) == 0 {
 		return assistantMsg, nil, nil
 	}

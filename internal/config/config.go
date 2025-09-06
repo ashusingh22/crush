@@ -143,6 +143,26 @@ type Options struct {
 	DebugLSP             bool        `json:"debug_lsp,omitempty" jsonschema:"description=Enable debug logging for LSP servers,default=false"`
 	DisableAutoSummarize bool        `json:"disable_auto_summarize,omitempty" jsonschema:"description=Disable automatic conversation summarization,default=false"`
 	DataDirectory        string      `json:"data_directory,omitempty" jsonschema:"description=Directory for storing application data (relative to working directory),default=.crush,example=.crush"` // Relative to the cwd
+	
+	// Enhanced features for cost optimization and quality improvement
+	EnhanceFeatures      *EnhanceOptions `json:"enhance_features,omitempty" jsonschema:"description=Enhanced features for cost optimization and quality improvement"`
+}
+
+type EnhanceOptions struct {
+	// Response caching options
+	EnableCache         bool   `json:"enable_cache,omitempty" jsonschema:"description=Enable response caching to reduce API calls,default=true"`
+	CacheTTLMinutes     int    `json:"cache_ttl_minutes,omitempty" jsonschema:"description=Cache time-to-live in minutes,default=30,minimum=1,maximum=1440"`
+	CacheMaxEntries     int    `json:"cache_max_entries,omitempty" jsonschema:"description=Maximum number of cache entries,default=100,minimum=10,maximum=1000"`
+	
+	// Cost estimation options
+	EnableCostEstimation bool    `json:"enable_cost_estimation,omitempty" jsonschema:"description=Enable cost estimation before API calls,default=true"`
+	MaxCostThreshold     float64 `json:"max_cost_threshold,omitempty" jsonschema:"description=Maximum cost per request before warning (in USD),default=0.50,minimum=0.01,maximum=10.0"`
+	AutoOptimizeContext  bool    `json:"auto_optimize_context,omitempty" jsonschema:"description=Automatically optimize context for cost reduction,default=true"`
+	
+	// Feedback mechanism options
+	EnableFeedback       bool    `json:"enable_feedback,omitempty" jsonschema:"description=Enable response quality feedback mechanism,default=true"`
+	QualityThreshold     float64 `json:"quality_threshold,omitempty" jsonschema:"description=Minimum quality score for responses (0.0-1.0),default=0.7,minimum=0.0,maximum=1.0"`
+	MaxRetryAttempts     int     `json:"max_retry_attempts,omitempty" jsonschema:"description=Maximum retry attempts for improving responses,default=2,minimum=0,maximum=5"`
 }
 
 type MCPs map[string]MCPConfig
