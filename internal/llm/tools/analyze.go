@@ -24,8 +24,8 @@ type AnalysisResult struct {
 	Type        string                 `json:"type"`
 	Summary     string                 `json:"summary"`
 	Details     map[string]interface{} `json:"details"`
-	Suggestions []string              `json:"suggestions"`
-	Timestamp   time.Time             `json:"timestamp"`
+	Suggestions []string               `json:"suggestions"`
+	Timestamp   time.Time              `json:"timestamp"`
 }
 
 type analyzeTool struct {
@@ -144,7 +144,7 @@ func (t *analyzeTool) analyzeDirectory(dirPath, analysisType string, result *Ana
 
 func (t *analyzeTool) analyzeFile(filePath, analysisType string, result *AnalysisResult) (*AnalysisResult, error) {
 	ext := strings.ToLower(filepath.Ext(filePath))
-	
+
 	switch analysisType {
 	case "structure":
 		return t.analyzeFileStructure(filePath, ext, result)
@@ -212,7 +212,7 @@ func (t *analyzeTool) analyzeFileStructure(filePath, ext string, result *Analysi
 	}
 
 	structure := make(map[string]interface{})
-	
+
 	lines := strings.Split(string(content), "\n")
 	structure["line_count"] = len(lines)
 	structure["character_count"] = len(content)
@@ -242,7 +242,7 @@ func (t *analyzeTool) analyzeGoFileStructure(filePath string, content []byte, re
 	}
 
 	structure := make(map[string]interface{})
-	
+
 	// Count different elements
 	var functions, types, vars, consts int
 	var imports []string
@@ -295,9 +295,9 @@ func (t *analyzeTool) analyzeGoFileStructure(filePath string, content []byte, re
 func (t *analyzeTool) analyzeJSFileStructure(content []byte, result *AnalysisResult) (*AnalysisResult, error) {
 	contentStr := string(content)
 	lines := strings.Split(contentStr, "\n")
-	
+
 	structure := make(map[string]interface{})
-	
+
 	// Count functions, classes, imports
 	functionCount := strings.Count(contentStr, "function ") + strings.Count(contentStr, "=> ")
 	classCount := strings.Count(contentStr, "class ")
@@ -317,9 +317,9 @@ func (t *analyzeTool) analyzeJSFileStructure(content []byte, result *AnalysisRes
 func (t *analyzeTool) analyzePythonFileStructure(content []byte, result *AnalysisResult) (*AnalysisResult, error) {
 	contentStr := string(content)
 	lines := strings.Split(contentStr, "\n")
-	
+
 	structure := make(map[string]interface{})
-	
+
 	// Count functions, classes, imports
 	functionCount := strings.Count(contentStr, "def ")
 	classCount := strings.Count(contentStr, "class ")
@@ -384,7 +384,7 @@ func (t *analyzeTool) analyzeDirectoryComplexity(dirPath string, result *Analysi
 	// Analyze complexity across all files in directory
 	totalComplexity := 0
 	fileCount := 0
-	
+
 	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
@@ -450,10 +450,10 @@ func (t *analyzeTool) analyzeDirectoryPatterns(dirPath string, result *AnalysisR
 
 func (t *analyzeTool) formatAnalysisResult(result *AnalysisResult) string {
 	var output strings.Builder
-	
+
 	output.WriteString(fmt.Sprintf("# %s Analysis\n\n", strings.Title(result.Type)))
 	output.WriteString(fmt.Sprintf("**Summary:** %s\n\n", result.Summary))
-	
+
 	if len(result.Details) > 0 {
 		output.WriteString("## Details\n\n")
 		for key, value := range result.Details {
@@ -461,7 +461,7 @@ func (t *analyzeTool) formatAnalysisResult(result *AnalysisResult) string {
 		}
 		output.WriteString("\n")
 	}
-	
+
 	if len(result.Suggestions) > 0 {
 		output.WriteString("## Suggestions\n\n")
 		for _, suggestion := range result.Suggestions {
@@ -469,8 +469,8 @@ func (t *analyzeTool) formatAnalysisResult(result *AnalysisResult) string {
 		}
 		output.WriteString("\n")
 	}
-	
+
 	output.WriteString(fmt.Sprintf("*Analysis completed at %s*", result.Timestamp.Format(time.RFC3339)))
-	
+
 	return output.String()
 }

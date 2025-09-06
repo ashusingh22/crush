@@ -18,7 +18,7 @@ type BatchParams struct {
 }
 
 type BatchOperation struct {
-	Type   string                 `json:"type"`   // "file_search", "text_replace", "file_copy", "dir_analysis"
+	Type   string                 `json:"type"` // "file_search", "text_replace", "file_copy", "dir_analysis"
 	Params map[string]interface{} `json:"params"`
 }
 
@@ -53,7 +53,7 @@ func (t *batchTool) Info() ToolInfo {
 			"type": "object",
 			"properties": map[string]any{
 				"operations": map[string]any{
-					"type": "array",
+					"type":        "array",
 					"description": "Array of operations to execute",
 					"items": map[string]any{
 						"type": "object",
@@ -247,10 +247,10 @@ func (t *batchTool) executeFileSearch(params map[string]interface{}) (interface{
 	}
 
 	return map[string]interface{}{
-		"query":        query,
-		"search_path":  searchPath,
-		"matches":      matches,
-		"match_count":  len(matches),
+		"query":       query,
+		"search_path": searchPath,
+		"matches":     matches,
+		"match_count": len(matches),
 	}, nil
 }
 
@@ -285,9 +285,9 @@ func (t *batchTool) executeTextReplace(params map[string]interface{}) (interface
 
 	if replacementCount == 0 {
 		return map[string]interface{}{
-			"file":             filePath,
-			"replacements":     0,
-			"modified":         false,
+			"file":         filePath,
+			"replacements": 0,
+			"modified":     false,
 		}, nil
 	}
 
@@ -297,11 +297,11 @@ func (t *batchTool) executeTextReplace(params map[string]interface{}) (interface
 	}
 
 	return map[string]interface{}{
-		"file":             filePath,
-		"old_text":         oldText,
-		"new_text":         newText,
-		"replacements":     replacementCount,
-		"modified":         true,
+		"file":         filePath,
+		"old_text":     oldText,
+		"new_text":     newText,
+		"replacements": replacementCount,
+		"modified":     true,
 	}, nil
 }
 
@@ -341,11 +341,11 @@ func (t *batchTool) executeFileCopy(params map[string]interface{}) (interface{},
 
 	sourceInfo, _ := os.Stat(source)
 	return map[string]interface{}{
-		"source":       source,
-		"destination":  destination,
-		"size_bytes":   len(sourceContent),
-		"copied":       true,
-		"source_info":  sourceInfo,
+		"source":      source,
+		"destination": destination,
+		"size_bytes":  len(sourceContent),
+		"copied":      true,
+		"source_info": sourceInfo,
 	}, nil
 }
 
@@ -360,12 +360,12 @@ func (t *batchTool) executeDirAnalysis(params map[string]interface{}) (interface
 	}
 
 	analysis := map[string]interface{}{
-		"path":             analysisPath,
-		"total_files":      0,
-		"total_dirs":       0,
-		"total_size":       int64(0),
-		"file_types":       make(map[string]int),
-		"largest_files":    []map[string]interface{}{},
+		"path":          analysisPath,
+		"total_files":   0,
+		"total_dirs":    0,
+		"total_size":    int64(0),
+		"file_types":    make(map[string]int),
+		"largest_files": []map[string]interface{}{},
 	}
 
 	var largestFiles []map[string]interface{}
@@ -392,13 +392,13 @@ func (t *batchTool) executeDirAnalysis(params map[string]interface{}) (interface
 			// Track largest files
 			relPath, _ := filepath.Rel(analysisPath, path)
 			fileInfo := map[string]interface{}{
-				"path":      relPath,
-				"size":      info.Size(),
-				"modified":  info.ModTime(),
+				"path":     relPath,
+				"size":     info.Size(),
+				"modified": info.ModTime(),
 			}
 
 			largestFiles = append(largestFiles, fileInfo)
-			
+
 			// Keep only top 10 largest files
 			if len(largestFiles) > 10 {
 				// Simple bubble sort to keep largest
@@ -480,9 +480,9 @@ func (t *batchTool) executePatternFind(params map[string]interface{}) (interface
 			if strings.Contains(strings.ToLower(line), strings.ToLower(pattern)) {
 				relPath, _ := filepath.Rel(searchPath, path)
 				matches = append(matches, map[string]interface{}{
-					"file":       relPath,
-					"line":       lineNum + 1,
-					"content":    strings.TrimSpace(line),
+					"file":    relPath,
+					"line":    lineNum + 1,
+					"content": strings.TrimSpace(line),
 				})
 			}
 		}
@@ -515,12 +515,12 @@ func (t *batchTool) formatBatchResults(results []BatchResult) string {
 		}
 	}
 
-	output.WriteString(fmt.Sprintf("**Success Rate:** %d/%d (%.1f%%)\n\n", 
+	output.WriteString(fmt.Sprintf("**Success Rate:** %d/%d (%.1f%%)\n\n",
 		successCount, len(results), float64(successCount)/float64(len(results))*100))
 
 	for _, result := range results {
 		output.WriteString(fmt.Sprintf("## Operation %d: %s\n", result.OperationIndex+1, result.Type))
-		output.WriteString(fmt.Sprintf("**Status:** %s | **Duration:** %s\n\n", 
+		output.WriteString(fmt.Sprintf("**Status:** %s | **Duration:** %s\n\n",
 			map[bool]string{true: "✅ Success", false: "❌ Failed"}[result.Success], result.Duration))
 
 		if !result.Success {
@@ -530,27 +530,27 @@ func (t *batchTool) formatBatchResults(results []BatchResult) string {
 			switch result.Type {
 			case "file_search":
 				if resultMap, ok := result.Result.(map[string]interface{}); ok {
-					output.WriteString(fmt.Sprintf("Found %v matches for query '%v'\n\n", 
+					output.WriteString(fmt.Sprintf("Found %v matches for query '%v'\n\n",
 						resultMap["match_count"], resultMap["query"]))
 				}
 			case "text_replace":
 				if resultMap, ok := result.Result.(map[string]interface{}); ok {
-					output.WriteString(fmt.Sprintf("Made %v replacements in %v\n\n", 
+					output.WriteString(fmt.Sprintf("Made %v replacements in %v\n\n",
 						resultMap["replacements"], filepath.Base(resultMap["file"].(string))))
 				}
 			case "file_copy":
 				if resultMap, ok := result.Result.(map[string]interface{}); ok {
-					output.WriteString(fmt.Sprintf("Copied %v bytes to %v\n\n", 
+					output.WriteString(fmt.Sprintf("Copied %v bytes to %v\n\n",
 						resultMap["size_bytes"], filepath.Base(resultMap["destination"].(string))))
 				}
 			case "dir_analysis":
 				if resultMap, ok := result.Result.(map[string]interface{}); ok {
-					output.WriteString(fmt.Sprintf("Analyzed: %v files, %v directories, %v bytes total\n\n", 
+					output.WriteString(fmt.Sprintf("Analyzed: %v files, %v directories, %v bytes total\n\n",
 						resultMap["total_files"], resultMap["total_dirs"], resultMap["total_size"]))
 				}
 			case "pattern_find":
 				if resultMap, ok := result.Result.(map[string]interface{}); ok {
-					output.WriteString(fmt.Sprintf("Found %v matches for pattern '%v'\n\n", 
+					output.WriteString(fmt.Sprintf("Found %v matches for pattern '%v'\n\n",
 						resultMap["match_count"], resultMap["pattern"]))
 				}
 			}

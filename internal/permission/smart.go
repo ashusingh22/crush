@@ -13,23 +13,23 @@ import (
 
 // SmartPermissionPattern represents a learned permission pattern
 type SmartPermissionPattern struct {
-	ToolName        string    `json:"tool_name"`
-	Action          string    `json:"action"`
-	PathPattern     string    `json:"path_pattern"`
-	ApprovalCount   int       `json:"approval_count"`
-	DenialCount     int       `json:"denial_count"`
-	LastUsed        time.Time `json:"last_used"`
-	Confidence      float64   `json:"confidence"`
-	AutoApprove     bool      `json:"auto_approve"`
+	ToolName      string    `json:"tool_name"`
+	Action        string    `json:"action"`
+	PathPattern   string    `json:"path_pattern"`
+	ApprovalCount int       `json:"approval_count"`
+	DenialCount   int       `json:"denial_count"`
+	LastUsed      time.Time `json:"last_used"`
+	Confidence    float64   `json:"confidence"`
+	AutoApprove   bool      `json:"auto_approve"`
 }
 
 // SmartPermissionService extends the basic permission service with learning capabilities
 type SmartPermissionService struct {
 	Service
-	patterns      map[string]*SmartPermissionPattern
-	patternsMu    sync.RWMutex
-	learningFile  string
-	enabled       bool
+	patterns            map[string]*SmartPermissionPattern
+	patternsMu          sync.RWMutex
+	learningFile        string
+	enabled             bool
 	confidenceThreshold float64
 }
 
@@ -42,11 +42,11 @@ func NewSmartPermissionService(baseService Service, workingDir string, enabled b
 		enabled:             enabled,
 		confidenceThreshold: 0.8, // Auto-approve when confidence >= 80%
 	}
-	
+
 	if enabled {
 		sps.loadPatterns()
 	}
-	
+
 	return sps
 }
 
@@ -55,23 +55,23 @@ func (s *SmartPermissionService) Request(opts CreatePermissionRequest) bool {
 	if !s.enabled {
 		return s.Service.Request(opts)
 	}
-	
+
 	// Check if we have a learned pattern for this request
 	if s.shouldAutoApprove(opts) {
-		slog.Debug("Auto-approving based on learned pattern", 
-			"tool", opts.ToolName, 
+		slog.Debug("Auto-approving based on learned pattern",
+			"tool", opts.ToolName,
 			"action", opts.Action,
 			"path", opts.Path,
 		)
 		return true
 	}
-	
+
 	// Fall back to regular permission check
 	approved := s.Service.Request(opts)
-	
+
 	// Learn from the user's decision
 	s.learnFromDecision(opts, approved)
-	
+
 	return approved
 }
 
@@ -79,17 +79,17 @@ func (s *SmartPermissionService) Request(opts CreatePermissionRequest) bool {
 func (s *SmartPermissionService) shouldAutoApprove(opts CreatePermissionRequest) bool {
 	s.patternsMu.RLock()
 	defer s.patternsMu.RUnlock()
-	
+
 	key := s.getPatternKey(opts.ToolName, opts.Action, opts.Path)
 	pattern, exists := s.patterns[key]
-	
+
 	if !exists {
 		return false
 	}
-	
+
 	// Update last used time
 	pattern.LastUsed = time.Now()
-	
+
 	// Check if pattern is confident enough and set to auto-approve
 	return pattern.AutoApprove && pattern.Confidence >= s.confidenceThreshold
 }
@@ -98,10 +98,10 @@ func (s *SmartPermissionService) shouldAutoApprove(opts CreatePermissionRequest)
 func (s *SmartPermissionService) learnFromDecision(opts CreatePermissionRequest, approved bool) {
 	s.patternsMu.Lock()
 	defer s.patternsMu.Unlock()
-	
+
 	key := s.getPatternKey(opts.ToolName, opts.Action, opts.Path)
 	pattern, exists := s.patterns[key]
-	
+
 	if !exists {
 		pattern = &SmartPermissionPattern{
 			ToolName:    opts.ToolName,
@@ -110,19 +110,19 @@ func (s *SmartPermissionService) learnFromDecision(opts CreatePermissionRequest,
 		}
 		s.patterns[key] = pattern
 	}
-	
+
 	// Update counts
 	if approved {
 		pattern.ApprovalCount++
 	} else {
 		pattern.DenialCount++
 	}
-	
+
 	pattern.LastUsed = time.Now()
-	
+
 	// Calculate confidence and auto-approval eligibility
 	s.updatePatternConfidence(pattern)
-	
+
 	slog.Debug("Learned from permission decision",
 		"tool", opts.ToolName,
 		"action", opts.Action,
@@ -130,7 +130,7 @@ func (s *SmartPermissionService) learnFromDecision(opts CreatePermissionRequest,
 		"confidence", pattern.Confidence,
 		"auto_approve", pattern.AutoApprove,
 	)
-	
+
 	// Save patterns asynchronously
 	go s.savePatterns()
 }
@@ -143,10 +143,10 @@ func (s *SmartPermissionService) updatePatternConfidence(pattern *SmartPermissio
 		pattern.AutoApprove = false
 		return
 	}
-	
+
 	// Base confidence is approval rate
 	approvalRate := float64(pattern.ApprovalCount) / float64(total)
-	
+
 	// Adjust confidence based on sample size (more samples = higher confidence)
 	sampleSizeBonus := 1.0
 	if total >= 5 {
@@ -155,7 +155,7 @@ func (s *SmartPermissionService) updatePatternConfidence(pattern *SmartPermissio
 	if total >= 10 {
 		sampleSizeBonus = 1.2
 	}
-	
+
 	// Time decay for old patterns
 	daysSinceLastUse := time.Since(pattern.LastUsed).Hours() / 24
 	timeDecay := 1.0
@@ -165,12 +165,12 @@ func (s *SmartPermissionService) updatePatternConfidence(pattern *SmartPermissio
 	if daysSinceLastUse > 90 {
 		timeDecay = 0.7
 	}
-	
+
 	pattern.Confidence = approvalRate * sampleSizeBonus * timeDecay
-	
+
 	// Enable auto-approval for consistently approved actions
-	pattern.AutoApprove = pattern.Confidence >= s.confidenceThreshold && 
-		pattern.ApprovalCount >= 3 && 
+	pattern.AutoApprove = pattern.Confidence >= s.confidenceThreshold &&
+		pattern.ApprovalCount >= 3 &&
 		pattern.DenialCount == 0
 }
 
@@ -188,18 +188,18 @@ func (s *SmartPermissionService) generalizePattern(path string) string {
 			path = rel
 		}
 	}
-	
+
 	// Generalize common patterns
 	patterns := []struct {
 		pattern     string
 		replacement string
 	}{
-		{`\d+`, "*"},              // Replace numbers with wildcards
-		{`[a-f0-9]{8,}`, "*"},     // Replace long hex strings (IDs, hashes)
-		{`\.tmp\w*`, ".tmp*"},     // Generalize temp files
-		{`_\d+\.`, "_*."},         // Replace versioned files
+		{`\d+`, "*"},          // Replace numbers with wildcards
+		{`[a-f0-9]{8,}`, "*"}, // Replace long hex strings (IDs, hashes)
+		{`\.tmp\w*`, ".tmp*"}, // Generalize temp files
+		{`_\d+\.`, "_*."},     // Replace versioned files
 	}
-	
+
 	generalized := path
 	for _, p := range patterns {
 		// Simple string replacement for basic patterns
@@ -207,7 +207,7 @@ func (s *SmartPermissionService) generalizePattern(path string) string {
 			generalized = strings.ReplaceAll(generalized, p.pattern, p.replacement)
 		}
 	}
-	
+
 	return generalized
 }
 
@@ -220,17 +220,17 @@ func (s *SmartPermissionService) loadPatterns() {
 		}
 		return
 	}
-	
+
 	var patterns map[string]*SmartPermissionPattern
 	if err := json.Unmarshal(data, &patterns); err != nil {
 		slog.Warn("Failed to parse permission patterns", "error", err)
 		return
 	}
-	
+
 	s.patternsMu.Lock()
 	s.patterns = patterns
 	s.patternsMu.Unlock()
-	
+
 	slog.Debug("Loaded permission patterns", "count", len(patterns))
 }
 
@@ -242,24 +242,24 @@ func (s *SmartPermissionService) savePatterns() {
 		patterns[k] = v
 	}
 	s.patternsMu.RUnlock()
-	
+
 	// Ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(s.learningFile), 0755); err != nil {
 		slog.Warn("Failed to create patterns directory", "error", err)
 		return
 	}
-	
+
 	data, err := json.MarshalIndent(patterns, "", "  ")
 	if err != nil {
 		slog.Warn("Failed to marshal permission patterns", "error", err)
 		return
 	}
-	
+
 	if err := os.WriteFile(s.learningFile, data, 0644); err != nil {
 		slog.Warn("Failed to save permission patterns", "error", err)
 		return
 	}
-	
+
 	slog.Debug("Saved permission patterns", "count", len(patterns))
 }
 
@@ -267,14 +267,14 @@ func (s *SmartPermissionService) savePatterns() {
 func (s *SmartPermissionService) GetLearningStats() map[string]interface{} {
 	s.patternsMu.RLock()
 	defer s.patternsMu.RUnlock()
-	
+
 	stats := map[string]interface{}{
-		"enabled":         s.enabled,
-		"total_patterns":  len(s.patterns),
-		"auto_approve_patterns": 0,
+		"enabled":                  s.enabled,
+		"total_patterns":           len(s.patterns),
+		"auto_approve_patterns":    0,
 		"high_confidence_patterns": 0,
 	}
-	
+
 	for _, pattern := range s.patterns {
 		if pattern.AutoApprove {
 			stats["auto_approve_patterns"] = stats["auto_approve_patterns"].(int) + 1
@@ -283,7 +283,7 @@ func (s *SmartPermissionService) GetLearningStats() map[string]interface{} {
 			stats["high_confidence_patterns"] = stats["high_confidence_patterns"].(int) + 1
 		}
 	}
-	
+
 	return stats
 }
 
@@ -292,11 +292,11 @@ func (s *SmartPermissionService) ClearLearning() error {
 	s.patternsMu.Lock()
 	s.patterns = make(map[string]*SmartPermissionPattern)
 	s.patternsMu.Unlock()
-	
+
 	if err := os.Remove(s.learningFile); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	
+
 	slog.Info("Cleared all learned permission patterns")
 	return nil
 }
@@ -312,7 +312,7 @@ func (s *SmartPermissionService) IsSafeOperation(toolName, action string) bool {
 		"batch":       {"execute_batch"}, // Batch operations with individual permission checks
 		"diagnostics": {"get"},
 	}
-	
+
 	if allowedActions, exists := safeOperations[toolName]; exists {
 		for _, allowedAction := range allowedActions {
 			if action == allowedAction {
@@ -320,7 +320,7 @@ func (s *SmartPermissionService) IsSafeOperation(toolName, action string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
@@ -328,16 +328,16 @@ func (s *SmartPermissionService) IsSafeOperation(toolName, action string) bool {
 func (s *SmartPermissionService) SuggestAutoApproval() []string {
 	s.patternsMu.RLock()
 	defer s.patternsMu.RUnlock()
-	
+
 	var suggestions []string
-	
+
 	for _, pattern := range s.patterns {
 		if pattern.Confidence >= 0.9 && pattern.ApprovalCount >= 5 && pattern.DenialCount == 0 {
-			suggestion := fmt.Sprintf("%s:%s (confidence: %.2f, used %d times)", 
+			suggestion := fmt.Sprintf("%s:%s (confidence: %.2f, used %d times)",
 				pattern.ToolName, pattern.Action, pattern.Confidence, pattern.ApprovalCount)
 			suggestions = append(suggestions, suggestion)
 		}
 	}
-	
+
 	return suggestions
 }

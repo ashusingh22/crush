@@ -26,29 +26,29 @@ func NewCostEstimator(maxCostThreshold float64) *CostEstimator {
 func (ce *CostEstimator) EstimateRequestCost(ctx context.Context, messages []message.Message, model catwalk.Model, maxTokens int) (*provider.TokenUsage, float64, error) {
 	// Estimate input tokens
 	inputTokens := ce.countTokensInMessages(messages)
-	
+
 	// Estimate output tokens (use maxTokens as upper bound, but use reasonable default)
 	outputTokens := maxTokens
 	if outputTokens == 0 {
 		outputTokens = int(model.DefaultMaxTokens) / 2 // Conservative estimate
 	}
-	
+
 	usage := provider.TokenUsage{
 		InputTokens:  int64(inputTokens),
 		OutputTokens: int64(outputTokens),
 	}
-	
+
 	// Calculate cost
 	cost := model.CostPer1MIn/1e6*float64(usage.InputTokens) +
 		model.CostPer1MOut/1e6*float64(usage.OutputTokens)
-	
-	slog.Debug("Cost estimation", 
+
+	slog.Debug("Cost estimation",
 		"input_tokens", usage.InputTokens,
 		"output_tokens", usage.OutputTokens,
 		"estimated_cost", cost,
 		"model", model.ID,
 	)
-	
+
 	return &usage, cost, nil
 }
 
@@ -64,11 +64,11 @@ func (ce *CostEstimator) ShouldProceed(estimatedCost float64) (bool, string) {
 // This is a simplified implementation - real token counting would use the model's tokenizer
 func (ce *CostEstimator) countTokensInMessages(messages []message.Message) int {
 	totalTokens := 0
-	
+
 	for _, msg := range messages {
 		// Add base tokens for role and structure
 		totalTokens += 4
-		
+
 		for _, part := range msg.Parts {
 			switch p := part.(type) {
 			case message.TextContent:
@@ -81,7 +81,7 @@ func (ce *CostEstimator) countTokensInMessages(messages []message.Message) int {
 			}
 		}
 	}
-	
+
 	return totalTokens
 }
 
@@ -91,11 +91,11 @@ func (ce *CostEstimator) estimateTextTokens(text string) int {
 	// This varies by model and language, but provides a reasonable estimate
 	words := len(strings.Fields(text))
 	chars := len(text)
-	
+
 	// Use a heuristic that combines word count and character count
 	// This tends to be more accurate than just character count
 	estimate := int(float64(words)*1.3 + float64(chars)*0.25)
-	
+
 	return estimate
 }
 
@@ -104,27 +104,27 @@ func (ce *CostEstimator) OptimizeMessages(ctx context.Context, messages []messag
 	if targetReduction <= 0 || targetReduction >= 1 {
 		return messages
 	}
-	
+
 	optimized := make([]message.Message, 0, len(messages))
 	currentSize := ce.countTokensInMessages(messages)
 	targetSize := int(float64(currentSize) * (1 - targetReduction))
-	
-	slog.Debug("Optimizing messages", 
+
+	slog.Debug("Optimizing messages",
 		"original_tokens", currentSize,
 		"target_tokens", targetSize,
 		"reduction", targetReduction,
 	)
-	
+
 	// Keep the last few messages (most recent context) and system message
 	importantCount := min(5, len(messages))
-	
+
 	// Always include system messages and recent messages
 	for i, msg := range messages {
 		if msg.Role == message.System || i >= len(messages)-importantCount {
 			optimized = append(optimized, msg)
 			continue
 		}
-		
+
 		// For older messages, check if we need to truncate
 		if ce.countTokensInMessages(optimized) < targetSize {
 			// Try to summarize or truncate this message
@@ -132,14 +132,14 @@ func (ce *CostEstimator) OptimizeMessages(ctx context.Context, messages []messag
 			optimized = append(optimized, summarized)
 		}
 	}
-	
+
 	finalSize := ce.countTokensInMessages(optimized)
-	slog.Debug("Message optimization complete", 
+	slog.Debug("Message optimization complete",
 		"original_tokens", currentSize,
 		"final_tokens", finalSize,
 		"reduction_achieved", float64(currentSize-finalSize)/float64(currentSize),
 	)
-	
+
 	return optimized
 }
 
@@ -147,7 +147,7 @@ func (ce *CostEstimator) OptimizeMessages(ctx context.Context, messages []messag
 func (ce *CostEstimator) summarizeMessage(msg message.Message) message.Message {
 	summarized := msg
 	summarized.Parts = nil
-	
+
 	for _, part := range msg.Parts {
 		switch p := part.(type) {
 		case message.TextContent:
@@ -175,7 +175,7 @@ func (ce *CostEstimator) summarizeMessage(msg message.Message) message.Message {
 			summarized.Parts = append(summarized.Parts, part)
 		}
 	}
-	
+
 	return summarized
 }
 

@@ -12,13 +12,13 @@ import (
 
 // ResponseQuality represents the quality score and analysis of a response
 type ResponseQuality struct {
-	Score           float64           `json:"score"`            // 0.0 to 1.0 quality score
-	Confidence      float64           `json:"confidence"`       // 0.0 to 1.0 confidence in the score
-	Issues          []string          `json:"issues"`           // List of identified issues
-	Suggestions     []string          `json:"suggestions"`      // Improvement suggestions
-	RequiresRetry   bool              `json:"requires_retry"`   // Whether response should be regenerated
-	Metrics         map[string]float64 `json:"metrics"`         // Individual quality metrics
-	Timestamp       time.Time         `json:"timestamp"`
+	Score         float64            `json:"score"`          // 0.0 to 1.0 quality score
+	Confidence    float64            `json:"confidence"`     // 0.0 to 1.0 confidence in the score
+	Issues        []string           `json:"issues"`         // List of identified issues
+	Suggestions   []string           `json:"suggestions"`    // Improvement suggestions
+	RequiresRetry bool               `json:"requires_retry"` // Whether response should be regenerated
+	Metrics       map[string]float64 `json:"metrics"`        // Individual quality metrics
+	Timestamp     time.Time          `json:"timestamp"`
 }
 
 // FeedbackMechanism provides response quality validation and improvement suggestions
@@ -76,7 +76,7 @@ func (fm *FeedbackMechanism) EvaluateResponse(ctx context.Context, userMessage m
 	// Determine if retry is needed
 	quality.RequiresRetry = quality.Score < fm.minQualityThreshold
 
-	slog.Debug("Response quality evaluation", 
+	slog.Debug("Response quality evaluation",
 		"score", quality.Score,
 		"confidence", quality.Confidence,
 		"requires_retry", quality.RequiresRetry,
@@ -120,7 +120,7 @@ func (fm *FeedbackMechanism) calculateCompleteness(userText, responseText string
 
 	// Check for common completeness indicators
 	responseText = strings.ToLower(responseText)
-	
+
 	incompleteIndicators := []string{
 		"i need more information",
 		"could you clarify",
@@ -146,31 +146,31 @@ func (fm *FeedbackMechanism) calculateClarity(responseText string) float64 {
 
 	words := strings.Fields(responseText)
 	sentences := strings.Split(responseText, ".")
-	
+
 	// Average sentence length (clarity decreases with very long sentences)
 	avgSentenceLength := float64(len(words)) / float64(len(sentences))
-	
+
 	clarityScore := 0.8
-	
+
 	// Penalize overly complex sentences
 	if avgSentenceLength > 25 {
 		clarityScore -= 0.2
 	}
-	
+
 	// Check for clarity indicators
 	responseText = strings.ToLower(responseText)
 	clarityIndicators := []string{
 		"first", "second", "then", "next", "finally",
 		"however", "therefore", "because", "since",
 	}
-	
+
 	indicatorCount := 0
 	for _, indicator := range clarityIndicators {
 		if strings.Contains(responseText, indicator) {
 			indicatorCount++
 		}
 	}
-	
+
 	// Boost score for structured responses
 	if indicatorCount > 2 {
 		clarityScore += 0.1
@@ -218,7 +218,7 @@ func (fm *FeedbackMechanism) calculateSpecificity(responseText string) float64 {
 	}
 
 	responseText = strings.ToLower(responseText)
-	
+
 	// Check for vague language
 	vagueTerms := []string{
 		"maybe", "perhaps", "might", "could be", "possibly",
@@ -246,12 +246,12 @@ func (fm *FeedbackMechanism) calculateSpecificity(responseText string) float64 {
 	}
 
 	specificityScore := 0.5
-	
+
 	// Penalize vagueness
 	if vaguenessCount > 3 {
 		specificityScore -= 0.3
 	}
-	
+
 	// Reward specificity
 	if specificityCount > 0 {
 		specificityScore += 0.3
@@ -263,7 +263,7 @@ func (fm *FeedbackMechanism) calculateSpecificity(responseText string) float64 {
 // detectErrorIndicators looks for signs of errors or hallucinations
 func (fm *FeedbackMechanism) detectErrorIndicators(responseText string) float64 {
 	responseText = strings.ToLower(responseText)
-	
+
 	errorIndicators := []string{
 		"i apologize, but",
 		"i'm sorry, i can't",
@@ -284,7 +284,7 @@ func (fm *FeedbackMechanism) detectErrorIndicators(responseText string) float64 
 	}
 
 	// Return 1.0 for no errors, decreasing with more error indicators
-	return max(0.0, 1.0 - float64(errorCount)*0.2)
+	return max(0.0, 1.0-float64(errorCount)*0.2)
 }
 
 // calculateOverallScore combines individual metrics into an overall quality score
@@ -318,16 +318,16 @@ func (fm *FeedbackMechanism) calculateOverallScore(metrics map[string]float64) f
 func (fm *FeedbackMechanism) calculateConfidence(metrics map[string]float64, responseText string) float64 {
 	// Base confidence depends on response length
 	wordCount := len(strings.Fields(responseText))
-	
+
 	confidence := 0.5
-	
+
 	if wordCount > 50 {
 		confidence += 0.2 // More content to analyze
 	}
 	if wordCount > 200 {
 		confidence += 0.1 // Even more content
 	}
-	
+
 	// Reduce confidence if metrics are inconsistent
 	variance := fm.calculateMetricsVariance(metrics)
 	if variance > 0.3 {
@@ -412,11 +412,11 @@ func (fm *FeedbackMechanism) GenerateImprovementPrompt(ctx context.Context, orig
 	}
 
 	prompt := "Please improve the previous response by addressing the following issues:\n\n"
-	
+
 	for i, issue := range quality.Issues {
 		prompt += fmt.Sprintf("%d. %s\n", i+1, issue)
 	}
-	
+
 	if len(quality.Suggestions) > 0 {
 		prompt += "\nSuggestions for improvement:\n"
 		for _, suggestion := range quality.Suggestions {

@@ -85,9 +85,9 @@ type agent struct {
 	promptQueue *csync.Map[string, []string]
 
 	// Enhanced features for cost optimization and quality improvement
-	responseCache    *ResponseCache
-	costEstimator    *CostEstimator
-	feedbackMech     *FeedbackMechanism
+	responseCache *ResponseCache
+	costEstimator *CostEstimator
+	feedbackMech  *FeedbackMechanism
 }
 
 var agentPromptMap = map[string]prompt.PromptID{
@@ -242,9 +242,9 @@ func NewAgent(
 		tools:               csync.NewLazySlice(toolFn),
 		promptQueue:         csync.NewMap[string, []string](),
 		// Initialize enhancement features with configuration
-		responseCache:       createResponseCache(cfg),
-		costEstimator:       createCostEstimator(cfg),
-		feedbackMech:        createFeedbackMechanism(cfg),
+		responseCache: createResponseCache(cfg),
+		costEstimator: createCostEstimator(cfg),
+		feedbackMech:  createFeedbackMechanism(cfg),
 	}, nil
 }
 
@@ -254,7 +254,7 @@ func createResponseCache(cfg *config.Config) *ResponseCache {
 	if enhance == nil {
 		return NewResponseCache(true, 30*time.Minute, 100) // Defaults
 	}
-	
+
 	enabled := enhance.EnableCache
 	ttl := time.Duration(enhance.CacheTTLMinutes) * time.Minute
 	if ttl <= 0 {
@@ -264,7 +264,7 @@ func createResponseCache(cfg *config.Config) *ResponseCache {
 	if maxEntries <= 0 {
 		maxEntries = 100 // Default
 	}
-	
+
 	return NewResponseCache(enabled, ttl, maxEntries)
 }
 
@@ -274,12 +274,12 @@ func createCostEstimator(cfg *config.Config) *CostEstimator {
 	if enhance == nil {
 		return NewCostEstimator(0.50) // Default
 	}
-	
+
 	threshold := enhance.MaxCostThreshold
 	if threshold <= 0 {
 		threshold = 0.50 // Default
 	}
-	
+
 	return NewCostEstimator(threshold)
 }
 
@@ -289,7 +289,7 @@ func createFeedbackMechanism(cfg *config.Config) *FeedbackMechanism {
 	if enhance == nil {
 		return NewFeedbackMechanism(true, 0.7, 2) // Defaults
 	}
-	
+
 	enabled := enhance.EnableFeedback
 	threshold := enhance.QualityThreshold
 	if threshold <= 0 || threshold > 1 {
@@ -299,7 +299,7 @@ func createFeedbackMechanism(cfg *config.Config) *FeedbackMechanism {
 	if maxRetries < 0 {
 		maxRetries = 2 // Default
 	}
-	
+
 	return NewFeedbackMechanism(enabled, threshold, maxRetries)
 }
 
@@ -585,12 +585,12 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	if err != nil {
 		slog.Warn("Failed to estimate cost", "error", err)
 	} else {
-		slog.Debug("Request cost estimation", 
+		slog.Debug("Request cost estimation",
 			"estimated_cost", estimatedCost,
 			"input_tokens", estimatedUsage.InputTokens,
 			"output_tokens", estimatedUsage.OutputTokens,
 		)
-		
+
 		// Check if cost is acceptable
 		if proceed, reason := a.costEstimator.ShouldProceed(estimatedCost); !proceed {
 			return message.Message{}, nil, fmt.Errorf("request blocked: %s (estimated cost: $%.4f)", reason, estimatedCost)
@@ -739,8 +739,8 @@ out:
 	if len(msgHistory) > 0 && a.feedbackMech != nil {
 		userMessage := msgHistory[len(msgHistory)-1] // Last user message
 		quality := a.feedbackMech.EvaluateResponse(ctx, userMessage, assistantMsg)
-		
-		slog.Debug("Response quality evaluation", 
+
+		slog.Debug("Response quality evaluation",
 			"score", quality.Score,
 			"confidence", quality.Confidence,
 			"requires_retry", quality.RequiresRetry,
@@ -753,7 +753,7 @@ out:
 			improvementPrompt := a.feedbackMech.GenerateImprovementPrompt(ctx, assistantMsg, quality)
 			if improvementPrompt != "" {
 				slog.Debug("Generated improvement prompt", "prompt_length", len(improvementPrompt))
-				
+
 				// Add improvement attempt to prompt queue for next iteration
 				// This allows for iterative improvement without immediate API calls
 				existingPrompts, _ := a.promptQueue.Get(sessionID)
@@ -770,7 +770,7 @@ out:
 		if trackingProvider, ok := a.provider.(interface{ GetLastUsage() provider.TokenUsage }); ok {
 			usage = trackingProvider.GetLastUsage()
 		}
-		
+
 		a.responseCache.Set(ctx, msgHistory, a.Model().ID, assistantMsg, usage)
 	}
 
