@@ -6,7 +6,8 @@ import {
   FiTerminal, 
   FiUser, 
   FiCpu,
-  FiShield
+  FiShield,
+  FiBox
 } from 'react-icons/fi';
 
 const ChatContainer = styled.div`
@@ -69,6 +70,15 @@ const Message = styled(motion.div)`
     .message-content {
       background: ${props => props.theme.colors.surface};
       border: 1px solid ${props => props.theme.colors.border};
+      border-radius: ${props => props.theme.borderRadius.lg} ${props => props.theme.borderRadius.lg} ${props => props.theme.borderRadius.lg} ${props => props.theme.borderRadius.md};
+    }
+  }
+
+  &.error {
+    .message-content {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
       border-radius: ${props => props.theme.borderRadius.lg} ${props => props.theme.borderRadius.lg} ${props => props.theme.borderRadius.lg} ${props => props.theme.borderRadius.md};
     }
   }
@@ -200,6 +210,7 @@ const ChatPage = () => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [dockerStatus, setDockerStatus] = useState('checking');
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -210,11 +221,34 @@ const ChatPage = () => {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    // Check Docker status on component mount
+    const checkDockerStatus = async () => {
+      try {
+        const response = await fetch('/api/health');
+        if (response.ok) {
+          const health = await response.json();
+          setDockerStatus(health.services.docker === 'available' ? 'available' : 'unavailable');
+        } else {
+          setDockerStatus('unavailable');
+        }
+      } catch (error) {
+        console.error('Error checking Docker status:', error);
+        setDockerStatus('unavailable');
+      }
+    };
+
+    checkDockerStatus();
+  }, []);
+
   const examplePrompts = [
+    "Create a React app using Docker: docker_app_builder create_project my-react-app react",
+    "Build a Node.js API: docker_app_builder create_project my-api nodejs", 
+    "Make a Python FastAPI: docker_app_builder create_project my-python-api python",
     "Analyze this codebase and explain its structure",
     "Help me debug a React component that's not updating",
     "Create a REST API endpoint for user authentication",
-    "Explain the differences between var, let, and const in JavaScript",
+    "Build and run my Docker app: docker_app_builder build my-app",
     "Review my code for security vulnerabilities"
   ];
 
@@ -232,18 +266,46 @@ const ChatPage = () => {
     setInputValue('');
     setIsLoading(true);
 
-    // Simulate API call - in real implementation, this would connect to the Crush backend
-    setTimeout(() => {
+    try {
+      // Real API call to Crush backend
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage.text,
+          session_id: 'web-session-' + Date.now()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      const result = await response.json();
+      
       const assistantMessage = {
         id: Date.now() + 1,
-        text: `I understand you want to: "${userMessage.text}". This is a demo interface - in the full implementation, I would connect to the Crush backend to process your request using the secure AI tools and permission system.`,
+        text: result.response,
         isUser: false,
-        timestamp: new Date()
+        timestamp: new Date(result.timestamp)
       };
       
       setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        text: `Sorry, I encountered an error: ${error.message}. Please make sure the Crush backend is running.`,
+        isUser: false,
+        timestamp: new Date(),
+        isError: true
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -267,6 +329,12 @@ const ChatPage = () => {
         <StatusIndicator>
           <FiShield />
           Security Active
+        </StatusIndicator>
+        <StatusIndicator style={{ 
+          color: dockerStatus === 'available' ? '#10b981' : dockerStatus === 'unavailable' ? '#ef4444' : '#6b7280' 
+        }}>
+          <FiBox />
+          Docker {dockerStatus === 'available' ? 'Ready' : dockerStatus === 'unavailable' ? 'Unavailable' : 'Checking...'}
         </StatusIndicator>
       </ChatHeader>
 
@@ -295,7 +363,7 @@ const ChatPage = () => {
           messages.map((message) => (
             <Message
               key={message.id}
-              className={message.isUser ? 'user' : 'assistant'}
+              className={message.isUser ? 'user' : message.isError ? 'error' : 'assistant'}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
