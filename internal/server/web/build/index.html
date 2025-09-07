@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crush - AI Development Assistant</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f0f;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            text-align: center;
+            padding: 2rem;
+        }
+        .logo {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            font-size: 1.5rem;
+            color: #a3a3a3;
+            margin-bottom: 2rem;
+        }
+        .message {
+            background: #1a1a1a;
+            border: 1px solid #404040;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            max-width: 600px;
+            margin-bottom: 2rem;
+        }
+        .security-badge {
+            background: #10b98120;
+            border: 1px solid #10b98140;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            max-width: 400px;
+        }
+        .code {
+            background: #0a0a0a;
+            color: #00ff00;
+            padding: 1rem;
+            border-radius: 0.25rem;
+            font-family: 'Monaco', 'Consolas', monospace;
+            margin: 1rem 0;
+        }
+        @media (max-width: 768px) {
+            .logo { font-size: 2.5rem; }
+            .subtitle { font-size: 1.25rem; }
+            body { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">🔧 Crush</div>
+    <div class="subtitle">AI-Powered Development Assistant</div>
+    
+    <div class="message">
+        <h2>Web Interface Available!</h2>
+        <p>The Crush web interface provides a mobile-friendly way to interact with your AI development assistant.</p>
+        
+        <div class="code">
+            # Build the React web interface<br>
+            cd web && npm install && npm run build
+        </div>
+        
+        <p>Once built, the full React interface will be available here with:</p>
+        <ul style="text-align: left; margin: 1rem 0;">
+            <li>📱 Mobile-responsive design</li>
+            <li>🚀 Interactive onboarding</li>
+            <li>💬 Real-time chat interface</li>
+            <li>📚 Comprehensive documentation</li>
+            <li>🔒 Security-enhanced features</li>
+        </ul>
+    </div>
+    
+    <div class="security-badge">
+        🛡️ Security Enhanced
+    </div>
+</body>
+</html>
