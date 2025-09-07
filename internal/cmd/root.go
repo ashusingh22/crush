@@ -25,7 +25,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Debug")
 
 	rootCmd.Flags().BoolP("help", "h", false, "Help")
-	rootCmd.Flags().BoolP("yolo", "y", false, "Automatically accept all permissions (dangerous mode)")
+	rootCmd.Flags().BoolP("yolo", "y", false, "🚨 DANGEROUS: Automatically accept all permissions (bypasses ALL security)")
 
 	rootCmd.AddCommand(runCmd)
 }
@@ -55,7 +55,7 @@ crush -v
 # Run a single non-interactive prompt
 crush run "Explain the use of context in Go"
 
-# Run in dangerous mode (auto-accept all permissions)
+# Run in dangerous mode (🚨 WARNING: auto-accept all permissions - ONLY for testing!)
 crush -y
   `,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -100,6 +100,34 @@ func Execute() {
 func setupApp(cmd *cobra.Command) (*app.App, error) {
 	debug, _ := cmd.Flags().GetBool("debug")
 	yolo, _ := cmd.Flags().GetBool("yolo")
+	
+	// Add serious warning for YOLO mode
+	if yolo {
+		fmt.Fprintf(os.Stderr, "\n🚨 WARNING: YOLO MODE ENABLED 🚨\n")
+		fmt.Fprintf(os.Stderr, "═══════════════════════════════════════════════════════════════\n")
+		fmt.Fprintf(os.Stderr, "You are running Crush with ALL SECURITY DISABLED!\n")
+		fmt.Fprintf(os.Stderr, "This mode bypasses ALL permission checks and security measures.\n")
+		fmt.Fprintf(os.Stderr, "═══════════════════════════════════════════════════════════════\n")
+		fmt.Fprintf(os.Stderr, "⚠️  AI can execute ANY system command without permission\n")
+		fmt.Fprintf(os.Stderr, "⚠️  AI can read/write ANY file on your system\n")
+		fmt.Fprintf(os.Stderr, "⚠️  AI can modify system configurations\n")
+		fmt.Fprintf(os.Stderr, "⚠️  This could lead to complete system compromise\n")
+		fmt.Fprintf(os.Stderr, "═══════════════════════════════════════════════════════════════\n")
+		fmt.Fprintf(os.Stderr, "Only use YOLO mode in isolated testing environments!\n")
+		fmt.Fprintf(os.Stderr, "═══════════════════════════════════════════════════════════════\n\n")
+		
+		// Force user confirmation (unless running non-interactively)
+		if term.IsTerminal(os.Stdin.Fd()) {
+			fmt.Fprintf(os.Stderr, "Type 'I UNDERSTAND THE RISKS' to continue: ")
+			var confirmation string
+			fmt.Scanln(&confirmation)
+			if confirmation != "I UNDERSTAND THE RISKS" {
+				return nil, fmt.Errorf("YOLO mode requires explicit confirmation")
+			}
+			fmt.Fprintf(os.Stderr, "\n🚨 YOLO MODE CONFIRMED - ALL SECURITY DISABLED 🚨\n\n")
+		}
+	}
+	
 	dataDir, _ := cmd.Flags().GetString("data-dir")
 	ctx := cmd.Context()
 
