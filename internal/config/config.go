@@ -13,7 +13,9 @@ import (
 
 	"github.com/charmbracelet/catwalk/pkg/catwalk"
 	"github.com/charmbracelet/crush/internal/csync"
+	"github.com/charmbracelet/crush/internal/db"
 	"github.com/charmbracelet/crush/internal/env"
+	"github.com/charmbracelet/crush/internal/notifications"
 	"github.com/tidwall/sjson"
 )
 
@@ -272,6 +274,10 @@ type Config struct {
 	Options *Options `json:"options,omitempty" jsonschema:"description=General application options"`
 
 	Permissions *Permissions `json:"permissions,omitempty" jsonschema:"description=Permission settings for tool usage"`
+
+	Notifications *notifications.NotificationConfig `json:"notifications,omitempty" jsonschema:"description=Notification service configurations (Discord, Telegram)"`
+
+	Database *db.DatabaseConfig `json:"database,omitempty" jsonschema:"description=Database configuration (SQLite, PostgreSQL, MySQL)"`
 
 	// Internal
 	workingDir string `json:"-"`

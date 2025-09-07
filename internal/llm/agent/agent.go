@@ -201,6 +201,10 @@ func NewAgent(
 			// Enhanced productivity tools
 			tools.NewAnalyzeTool(permissions, cwd),
 			tools.NewBatchTool(permissions, cwd),
+			// Security and workflow tools
+			tools.NewCheckpointTool(permissions, cwd),
+			tools.NewLintFormatTool(permissions, cwd),
+			tools.NewNotificationTool(permissions, cfg.Notifications),
 		}
 
 		mcpToolsOnce.Do(func() {

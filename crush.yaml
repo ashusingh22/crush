@@ -1,0 +1,164 @@
+# Comprehensive Crush Configuration
+# This file demonstrates all available configuration options
+
+$schema: "https://charm.land/crush.json"
+
+# AI Model Configurations
+models:
+  large:
+    model: "gpt-4o"
+    provider: "openai"
+  small:
+    model: "gpt-4o-mini"
+    provider: "openai"
+
+# AI Provider Configurations
+providers:
+  openai:
+    enabled: true
+    api_key: "${OPENAI_API_KEY}"
+    models:
+      - "gpt-4o"
+      - "gpt-4o-mini"
+      - "gpt-3.5-turbo"
+  anthropic:
+    enabled: true
+    api_key: "${ANTHROPIC_API_KEY}"
+    models:
+      - "claude-3-5-sonnet-20241022"
+      - "claude-3-haiku-20240307"
+
+# Language Server Protocol Configurations
+lsp:
+  Go:
+    command: "gopls"
+    enabled: true
+  Python:
+    command: "pylsp"
+    enabled: true
+  TypeScript:
+    command: "typescript-language-server --stdio"
+    enabled: true
+  JavaScript:
+    command: "typescript-language-server --stdio"
+    enabled: true
+  PHP:
+    command: "intelephense --stdio"
+    enabled: true
+  Rust:
+    command: "rust-analyzer"
+    enabled: true
+  Java:
+    command: "jdtls"
+    enabled: true
+
+# Model Context Protocol Servers
+mcp:
+  filesystem:
+    disabled: false
+    command: "npx"
+    args: ["@modelcontextprotocol/server-filesystem", "/home/user/workspace"]
+    env:
+      NODE_ENV: "production"
+  
+  github:
+    disabled: false
+    command: "npx"
+    args: ["@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
+
+# Database Configuration
+database:
+  type: "sqlite"  # sqlite, postgres, mysql
+  database: "crush.db"
+  data_dir: "~/.crush"
+  # For PostgreSQL:
+  # type: "postgres"
+  # host: "localhost"
+  # port: 5432
+  # database: "crush"
+  # username: "crush_user"
+  # password: "${DATABASE_PASSWORD}"
+  # ssl_mode: "prefer"
+  
+  # For MySQL:
+  # type: "mysql"
+  # host: "localhost"
+  # port: 3306
+  # database: "crush"
+  # username: "crush_user"
+  # password: "${DATABASE_PASSWORD}"
+
+# Notification Configurations
+notifications:
+  discord:
+    enabled: true
+    webhook_url: "${DISCORD_WEBHOOK_URL}"
+    username: "Crush Assistant"
+    avatar_url: "https://github.com/charmbracelet/crush/raw/main/assets/logo.png"
+  
+  telegram:
+    enabled: true
+    bot_token: "${TELEGRAM_BOT_TOKEN}"
+    chat_id: "${TELEGRAM_CHAT_ID}"
+
+# General Application Options
+options:
+  data_directory: "~/.crush"
+  log_level: "info"
+  
+  # Enhanced Features
+  enhance_features:
+    enable_cache: true
+    cache_ttl_minutes: 30
+    cache_max_entries: 100
+    enable_feedback: true
+    quality_threshold: 0.7
+    max_retry_attempts: 2
+    max_cost_threshold: 0.50
+
+# Permission Settings
+permissions:
+  skip_requests: false
+  auto_approve_safe_operations: true
+  session_timeout_minutes: 60
+  
+  # Allowed tools (if not specified, all tools are allowed)
+  allowed_tools:
+    - "bash"
+    - "edit"
+    - "view"
+    - "write"
+    - "analyze"
+    - "batch"
+    - "checkpoint"
+    - "lint_format"
+    - "notify"
+    - "download"
+    - "fetch"
+    - "glob"
+    - "grep"
+    - "ls"
+
+# Agent Configurations (for multi-agent setups)
+agents:
+  default:
+    model_type: "large"
+    system_prompt: "You are a helpful AI assistant for software development."
+    
+  security_agent:
+    model_type: "large"
+    system_prompt: "You are a security-focused AI assistant. Always prioritize security best practices."
+    allowed_tools:
+      - "analyze"
+      - "view"
+      - "grep"
+    
+  formatter_agent:
+    model_type: "small"
+    system_prompt: "You are a code formatting and linting specialist."
+    allowed_tools:
+      - "lint_format"
+      - "view"
+      - "edit"
