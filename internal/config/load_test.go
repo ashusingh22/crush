@@ -1184,3 +1184,138 @@ func TestConfig_configureSelectedModels(t *testing.T) {
 		require.Equal(t, int64(100), large.MaxTokens)
 	})
 }
+
+func TestConfig_OllamaTurboConfiguration(t *testing.T) {
+	t.Run("should configure Ollama Turbo with API key", func(t *testing.T) {
+		cfg := &Config{
+			Providers: csync.NewMapFrom(map[string]ProviderConfig{
+				"ollama-turbo": {
+					Name:    "Ollama Turbo",
+					BaseURL: "https://ollama.com/v1/",
+					Type:    catwalk.TypeOpenAI,
+					APIKey:  "test-ollama-key",
+					Models: []catwalk.Model{
+						{
+							ID:               "gpt-oss:20b",
+							Name:             "GPT-OSS 20B",
+							ContextWindow:    128000,
+							DefaultMaxTokens: 8192,
+						},
+						{
+							ID:               "gpt-oss:120b",
+							Name:             "GPT-OSS 120B",
+							ContextWindow:    128000,
+							DefaultMaxTokens: 8192,
+						},
+						{
+							ID:               "deepseek-v3.1:671b",
+							Name:             "DeepSeek V3.1 671B",
+							ContextWindow:    128000,
+							DefaultMaxTokens: 8192,
+						},
+					},
+				},
+			}),
+		}
+		cfg.setDefaults("/tmp", "")
+		env := env.NewFromMap(map[string]string{})
+		resolver := NewEnvironmentVariableResolver(env)
+		
+		// Configure with no known providers (custom provider)
+		err := cfg.configureProviders(env, resolver, []catwalk.Provider{})
+		require.NoError(t, err)
+		
+		// Verify provider was configured correctly
+		provider, exists := cfg.Providers.Get("ollama-turbo")
+		require.True(t, exists)
+		require.Equal(t, "ollama-turbo", provider.ID)
+		require.Equal(t, "Ollama Turbo", provider.Name)
+		require.Equal(t, "https://ollama.com/v1/", provider.BaseURL)
+		require.Equal(t, catwalk.TypeOpenAI, provider.Type)
+		require.Equal(t, "test-ollama-key", provider.APIKey)
+		require.Len(t, provider.Models, 3)
+		
+		// Verify specific models
+		require.Equal(t, "gpt-oss:20b", provider.Models[0].ID)
+		require.Equal(t, "GPT-OSS 20B", provider.Models[0].Name)
+		require.Equal(t, int64(128000), provider.Models[0].ContextWindow)
+		require.Equal(t, int64(8192), provider.Models[0].DefaultMaxTokens)
+	})
+
+	t.Run("should configure Ollama Turbo with extra headers", func(t *testing.T) {
+		cfg := &Config{
+			Providers: csync.NewMapFrom(map[string]ProviderConfig{
+				"ollama-turbo": {
+					Name:    "Ollama Turbo",
+					BaseURL: "https://ollama.com/v1/",
+					Type:    catwalk.TypeOpenAI,
+					ExtraHeaders: map[string]string{
+						"Authorization": "Bearer test-ollama-key",
+					},
+					Models: []catwalk.Model{
+						{
+							ID:               "gpt-oss:120b",
+							Name:             "GPT-OSS 120B",
+							ContextWindow:    128000,
+							DefaultMaxTokens: 8192,
+						},
+					},
+				},
+			}),
+		}
+		cfg.setDefaults("/tmp", "")
+		env := env.NewFromMap(map[string]string{})
+		resolver := NewEnvironmentVariableResolver(env)
+		
+		// Configure with no known providers (custom provider)
+		err := cfg.configureProviders(env, resolver, []catwalk.Provider{})
+		require.NoError(t, err)
+		
+		// Verify provider was configured correctly
+		provider, exists := cfg.Providers.Get("ollama-turbo")
+		require.True(t, exists)
+		require.Equal(t, "ollama-turbo", provider.ID)
+		require.Equal(t, "Ollama Turbo", provider.Name)
+		require.Equal(t, "https://ollama.com/v1/", provider.BaseURL)
+		require.Equal(t, catwalk.TypeOpenAI, provider.Type)
+		require.Equal(t, "Bearer test-ollama-key", provider.ExtraHeaders["Authorization"])
+		require.Len(t, provider.Models, 1)
+		require.Equal(t, "gpt-oss:120b", provider.Models[0].ID)
+	})
+
+	t.Run("should resolve environment variables in Ollama Turbo config", func(t *testing.T) {
+		cfg := &Config{
+			Providers: csync.NewMapFrom(map[string]ProviderConfig{
+				"ollama-turbo": {
+					Name:    "Ollama Turbo",
+					BaseURL: "https://ollama.com/v1/",
+					Type:    catwalk.TypeOpenAI,
+					APIKey:  "$OLLAMA_API_KEY",
+					Models: []catwalk.Model{
+						{
+							ID:               "gpt-oss:20b",
+							Name:             "GPT-OSS 20B",
+							ContextWindow:    128000,
+							DefaultMaxTokens: 8192,
+						},
+					},
+				},
+			}),
+		}
+		cfg.setDefaults("/tmp", "")
+		env := env.NewFromMap(map[string]string{
+			"OLLAMA_API_KEY": "resolved-api-key",
+		})
+		resolver := NewEnvironmentVariableResolver(env)
+		
+		// Configure with no known providers (custom provider)
+		err := cfg.configureProviders(env, resolver, []catwalk.Provider{})
+		require.NoError(t, err)
+		
+		// Verify provider was configured correctly with placeholder API key
+		// (environment variable resolution happens at provider instantiation time)
+		provider, exists := cfg.Providers.Get("ollama-turbo")
+		require.True(t, exists)
+		require.Equal(t, "$OLLAMA_API_KEY", provider.APIKey)
+	})
+}

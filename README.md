@@ -295,6 +295,68 @@ Local models can also be configured via OpenAI-compatible API. Here are two comm
 }
 ```
 
+#### Ollama Turbo
+
+Ollama's [Turbo](https://ollama.com/turbo) provides accelerated model inference using datacenter-grade hardware. To use Ollama Turbo, you'll need to [sign up](https://ollama.com/signup) for an Ollama account and create an API key at https://ollama.com/settings/keys.
+
+```json
+{
+  "providers": {
+    "ollama-turbo": {
+      "name": "Ollama Turbo",
+      "base_url": "https://ollama.com/v1/",
+      "type": "openai",
+      "api_key": "$OLLAMA_API_KEY",
+      "models": [
+        {
+          "name": "GPT-OSS 20B",
+          "id": "gpt-oss:20b",
+          "context_window": 128000,
+          "default_max_tokens": 8192
+        },
+        {
+          "name": "GPT-OSS 120B", 
+          "id": "gpt-oss:120b",
+          "context_window": 128000,
+          "default_max_tokens": 8192
+        },
+        {
+          "name": "DeepSeek V3.1 671B",
+          "id": "deepseek-v3.1:671b",
+          "context_window": 128000,
+          "default_max_tokens": 8192
+        }
+      ]
+    }
+  }
+}
+```
+
+Alternatively, you can use extra headers for authentication:
+
+```json
+{
+  "providers": {
+    "ollama-turbo": {
+      "name": "Ollama Turbo",
+      "base_url": "https://ollama.com/v1/",
+      "type": "openai",
+      "extra_headers": {
+        "Authorization": "Bearer $OLLAMA_API_KEY"
+      },
+      "models": [
+        {
+          "name": "GPT-OSS 120B",
+          "id": "gpt-oss:120b",
+          "context_window": 128000,
+          "default_max_tokens": 8192
+        }
+      ]
+    }
+  }
+}
+```
+
 #### LM Studio
 
 ```json
