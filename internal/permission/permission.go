@@ -3,6 +3,7 @@ package permission
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -124,6 +125,14 @@ func (s *permissionService) Deny(permission PermissionRequest) {
 
 func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 	if s.skip {
+		// Log YOLO mode bypass for security audit
+		slog.Warn("🚨 SECURITY BYPASS: Permission automatically granted via YOLO mode",
+			"tool", opts.ToolName,
+			"action", opts.Action,
+			"path", opts.Path,
+			"session", opts.SessionID,
+			"description", opts.Description,
+		)
 		return true
 	}
 
@@ -214,6 +223,11 @@ func (s *permissionService) SubscribeNotifications(ctx context.Context) <-chan p
 
 func (s *permissionService) SetSkipRequests(skip bool) {
 	s.skip = skip
+	if skip {
+		slog.Warn("🚨 YOLO MODE ACTIVATED: All permission checks have been disabled!")
+	} else {
+		slog.Info("Permission checks re-enabled")
+	}
 }
 
 func (s *permissionService) SkipRequests() bool {
@@ -221,6 +235,9 @@ func (s *permissionService) SkipRequests() bool {
 }
 
 func NewPermissionService(workingDir string, skip bool, allowedTools []string) Service {
+	if skip {
+		slog.Warn("🚨 YOLO MODE: Creating permission service with ALL SECURITY DISABLED")
+	}
 	return &permissionService{
 		Broker:              pubsub.NewBroker[PermissionRequest](),
 		notificationBroker:  pubsub.NewBroker[PermissionNotification](),

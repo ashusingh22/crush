@@ -153,9 +153,12 @@ func (e *editTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		return NewTextErrorResponse("file_path is required"), nil
 	}
 
-	if !filepath.IsAbs(params.FilePath) {
-		params.FilePath = filepath.Join(e.workingDir, params.FilePath)
+	// Validate and sanitize file path to prevent directory traversal
+	filePath, pathErr := ValidatePathSecurity(params.FilePath, e.workingDir)
+	if pathErr != nil {
+		return NewTextErrorResponse(fmt.Sprintf("Invalid file path: %v", pathErr)), nil
 	}
+	params.FilePath = filePath
 
 	var response ToolResponse
 	var err error

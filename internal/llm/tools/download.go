@@ -124,12 +124,10 @@ func (t *downloadTool) Run(ctx context.Context, call ToolCall) (ToolResponse, er
 		return NewTextErrorResponse("URL must start with http:// or https://"), nil
 	}
 
-	// Convert relative path to absolute path
-	var filePath string
-	if filepath.IsAbs(params.FilePath) {
-		filePath = params.FilePath
-	} else {
-		filePath = filepath.Join(t.workingDir, params.FilePath)
+	// Validate and sanitize file path to prevent directory traversal
+	filePath, err := ValidatePathSecurity(params.FilePath, t.workingDir)
+	if err != nil {
+		return NewTextErrorResponse(fmt.Sprintf("Invalid file path: %v", err)), nil
 	}
 
 	sessionID, messageID := GetContextValues(ctx)

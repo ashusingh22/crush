@@ -126,10 +126,10 @@ func (v *viewTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		return NewTextErrorResponse("file_path is required"), nil
 	}
 
-	// Handle relative paths
-	filePath := params.FilePath
-	if !filepath.IsAbs(filePath) {
-		filePath = filepath.Join(v.workingDir, filePath)
+	// Validate and sanitize file path to prevent directory traversal
+	filePath, err := ValidatePathSecurity(params.FilePath, v.workingDir)
+	if err != nil {
+		return NewTextErrorResponse(fmt.Sprintf("Invalid file path: %v", err)), nil
 	}
 
 	// Check if file is outside working directory and request permission if needed

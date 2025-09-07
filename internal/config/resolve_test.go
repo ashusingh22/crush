@@ -80,6 +80,8 @@ func TestShellVariableResolver_ResolveValue(t *testing.T) {
 			resolver := &shellVariableResolver{
 				shell: &mockShell{execFunc: tt.shellFunc},
 				env:   testEnv,
+				allowCommandSubstitution: true,  // Enable for testing
+				allowedCommands: []string{"echo", "date", "whoami", "pwd", "hostname", "id", "uname"},
 			}
 
 			result, err := resolver.ResolveValue(tt.value)
@@ -245,6 +247,8 @@ func TestShellVariableResolver_EnhancedResolveValue(t *testing.T) {
 			resolver := &shellVariableResolver{
 				shell: &mockShell{execFunc: tt.shellFunc},
 				env:   testEnv,
+				allowCommandSubstitution: true,  // Enable for testing
+				allowedCommands: []string{"echo", "date", "whoami", "pwd", "hostname", "id", "uname"},
 			}
 
 			result, err := resolver.ResolveValue(tt.value)

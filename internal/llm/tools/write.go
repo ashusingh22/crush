@@ -123,9 +123,10 @@ func (w *writeTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 		return NewTextErrorResponse("content is required"), nil
 	}
 
-	filePath := params.FilePath
-	if !filepath.IsAbs(filePath) {
-		filePath = filepath.Join(w.workingDir, filePath)
+	// Validate and sanitize file path to prevent directory traversal
+	filePath, err := ValidatePathSecurity(params.FilePath, w.workingDir)
+	if err != nil {
+		return NewTextErrorResponse(fmt.Sprintf("Invalid file path: %v", err)), nil
 	}
 
 	fileInfo, err := os.Stat(filePath)

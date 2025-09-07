@@ -3,6 +3,8 @@ package config
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"regexp"
 	"strings"
 	"time"
 
@@ -21,6 +23,30 @@ type Shell interface {
 type shellVariableResolver struct {
 	shell Shell
 	env   env.Env
+	allowCommandSubstitution bool
+	allowedCommands []string
+}
+
+// List of commands that are considered safe for command substitution
+var defaultAllowedCommands = []string{
+	"echo", "date", "whoami", "pwd", "hostname", "id", "uname",
+	"git", "node", "npm", "go", "python", "python3", "pip", "pip3",
+	"which", "where", "command", "type",
+}
+
+// Patterns for dangerous command sequences
+var dangerousPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`\brm\b.*-[rf]`),          // rm with -r or -f flags
+	regexp.MustCompile(`\bmv\b.*\.\./`),          // mv with path traversal
+	regexp.MustCompile(`\bcp\b.*\.\./`),          // cp with path traversal
+	regexp.MustCompile(`\bchmod\b.*777`),         // chmod 777
+	regexp.MustCompile(`\bsu\b|\bsudo\b`),        // privilege escalation
+	regexp.MustCompile(`[;&|]\s*rm\b`),           // command chaining with rm
+	regexp.MustCompile(`\$\(`),                   // nested command substitution
+	regexp.MustCompile(`\beval\b|\bexec\b`),      // code execution
+	regexp.MustCompile(`>`),                      // output redirection
+	regexp.MustCompile(`<`),                      // input redirection
+	regexp.MustCompile(`\|\s*sh\b|\|\s*bash\b`),  // piping to shell
 }
 
 func NewShellVariableResolver(env env.Env) VariableResolver {
@@ -31,12 +57,60 @@ func NewShellVariableResolver(env env.Env) VariableResolver {
 				Env: env.Env(),
 			},
 		),
+		allowCommandSubstitution: false, // Default to disabled for security
+		allowedCommands: defaultAllowedCommands,
 	}
+}
+
+// NewShellVariableResolverWithCommands creates a resolver with command substitution enabled
+// and a custom list of allowed commands
+func NewShellVariableResolverWithCommands(env env.Env, allowedCommands []string) VariableResolver {
+	return &shellVariableResolver{
+		env: env,
+		shell: shell.NewShell(
+			&shell.Options{
+				Env: env.Env(),
+			},
+		),
+		allowCommandSubstitution: true,
+		allowedCommands: allowedCommands,
+	}
+}
+
+// validateCommand checks if a command is safe to execute
+func (r *shellVariableResolver) validateCommand(command string) error {
+	if !r.allowCommandSubstitution {
+		return fmt.Errorf("command substitution is disabled for security: $(command) not allowed")
+	}
+
+	// Check for dangerous patterns
+	for _, pattern := range dangerousPatterns {
+		if pattern.MatchString(command) {
+			return fmt.Errorf("dangerous command pattern detected: %s", command)
+		}
+	}
+
+	// Extract the base command (first word)
+	parts := strings.Fields(strings.TrimSpace(command))
+	if len(parts) == 0 {
+		return fmt.Errorf("empty command")
+	}
+
+	baseCommand := parts[0]
+	
+	// Check if command is in allowlist
+	for _, allowed := range r.allowedCommands {
+		if baseCommand == allowed {
+			return nil // Command is allowed
+		}
+	}
+
+	return fmt.Errorf("command '%s' not in allowlist of safe commands", baseCommand)
 }
 
 // ResolveValue is a method for resolving values, such as environment variables.
 // it will resolve shell-like variable substitution anywhere in the string, including:
-// - $(command) for command substitution
+// - $(command) for command substitution (if enabled and command is safe)
 // - $VAR or ${VAR} for environment variables
 func (r *shellVariableResolver) ResolveValue(value string) (string, error) {
 	// Special case: lone $ is an error (backward compatibility)
@@ -78,6 +152,21 @@ func (r *shellVariableResolver) ResolveValue(value string) (string, error) {
 		}
 
 		command := result[start+2 : end]
+		
+		// Validate command before execution
+		if err := r.validateCommand(command); err != nil {
+			slog.Warn("🚨 SECURITY: Blocked unsafe command substitution",
+				"command", command,
+				"error", err.Error(),
+				"config_value", value,
+			)
+			return "", fmt.Errorf("command substitution blocked: %w", err)
+		}
+
+		slog.Info("Executing safe command substitution",
+			"command", command,
+		)
+
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 
 		stdout, _, err := r.shell.Exec(ctx, command)
