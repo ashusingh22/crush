@@ -43,7 +43,16 @@ crush web --debug`,
 
 		// Initialize database
 		ctx := context.Background()
-		conn, err := db.Connect(ctx, cfg.Options.DataDirectory)
+		dbConfig := cfg.Database
+		if dbConfig == nil {
+			// Default to SQLite
+			dbConfig = &db.DatabaseConfig{
+				Type:     "sqlite",
+				Database: "crush.db",
+				DataDir:  cfg.Options.DataDirectory,
+			}
+		}
+		conn, err := db.Connect(ctx, dbConfig)
 		if err != nil {
 			return fmt.Errorf("failed to initialize database: %w", err)
 		}

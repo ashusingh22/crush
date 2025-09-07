@@ -151,7 +151,16 @@ func setupApp(cmd *cobra.Command) (*app.App, error) {
 	}
 
 	// Connect to DB; this will also run migrations.
-	conn, err := db.Connect(ctx, cfg.Options.DataDirectory)
+	dbConfig := cfg.Database
+	if dbConfig == nil {
+		// Default to SQLite
+		dbConfig = &db.DatabaseConfig{
+			Type:     "sqlite",
+			Database: "crush.db",
+			DataDir:  cfg.Options.DataDirectory,
+		}
+	}
+	conn, err := db.Connect(ctx, dbConfig)
 	if err != nil {
 		return nil, err
 	}
