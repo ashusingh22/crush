@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,9 +18,15 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	// Skip provider loading for tests by setting empty catwalk URL
+	os.Setenv("CATWALK_URL", "")
+	
 	_, err := config.Init(".", "", true)
 	if err != nil {
-		panic("Failed to initialize config: " + err.Error())
+		// For tests, ignore provider loading errors
+		if !strings.Contains(err.Error(), "failed to load providers") {
+			panic("Failed to initialize config: " + err.Error())
+		}
 	}
 
 	os.Exit(m.Run())

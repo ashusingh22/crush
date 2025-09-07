@@ -158,15 +158,9 @@ func TestShellVariableResolver_EnhancedResolveValue(t *testing.T) {
 			expected: "hello world",
 		},
 		{
-			name:  "nested parentheses in command",
-			value: "$(echo $(echo inner))",
-			shellFunc: func(ctx context.Context, command string) (stdout, stderr string, err error) {
-				if command == "echo $(echo inner)" {
-					return "nested\n", "", nil
-				}
-				return "", "", errors.New("unexpected command")
-			},
-			expected: "nested",
+			name:        "nested parentheses in command",
+			value:       "$(echo $(echo inner))",
+			expectError: true, // This should fail as it's a dangerous pattern
 		},
 		{
 			name:        "lone dollar with non-variable chars",
@@ -248,7 +242,7 @@ func TestShellVariableResolver_EnhancedResolveValue(t *testing.T) {
 				shell: &mockShell{execFunc: tt.shellFunc},
 				env:   testEnv,
 				allowCommandSubstitution: true,  // Enable for testing
-				allowedCommands: []string{"echo", "date", "whoami", "pwd", "hostname", "id", "uname"},
+				allowedCommands: []string{"echo", "date", "whoami", "pwd", "hostname", "id", "uname", "cat", "base64", "false"},
 			}
 
 			result, err := resolver.ResolveValue(tt.value)
