@@ -6,7 +6,6 @@ import {
   FiTerminal, 
   FiUser, 
   FiCpu,
-  FiSettings,
   FiShield
 } from 'react-icons/fi';
 

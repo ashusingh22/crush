@@ -8,7 +8,6 @@ import {
   FiZap, 
   FiCode, 
   FiFileText,
-  FiArrowRight,
   FiPlay,
   FiLock
 } from 'react-icons/fi';
